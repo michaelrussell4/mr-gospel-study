@@ -467,7 +467,7 @@ def extract_list_marker(lt_raw):
     return s or "•"
 
 def parse_rtf_paragraphs_list(clean_data, colortbl, images, footnotes_map, listtexts):
-    parts = clean_data.split('\\pard\\plain')
+    parts = re.split(r'\\pard\s*\\plain', clean_data)
     paras = []
     for idx, raw_p in enumerate(parts[1:], 1):
         # Check table cell/row markers before stripping \trowd
@@ -548,12 +548,12 @@ def render_entry_body(entry_id, body_paras):
             return
         # Check if multiple levels of indentation exist (chiasmus)
         levels = {step for step, _ in indent_group}
-        cls = "study-chiasm-group" if len(levels) > 1 else "study-quote-group"
+        cls = "study-blockquote study-chiasm-group" if len(levels) > 1 else "study-blockquote study-quote-group"
         inner = "\n".join(
             f'<div class="study-indent" style="--indent-steps: {step};">{h}</div>'
             for step, h in indent_group
         )
-        out_blocks.append(f'<div class="{cls}">\n{inner}\n</div>')
+        out_blocks.append(f'<blockquote class="{cls}">\n{inner}\n</blockquote>')
         indent_group = []
 
     def flush_lists(target_level=-1):
@@ -681,7 +681,6 @@ def render_entry_body(entry_id, body_paras):
         st = p["style"]
         if st in ("s2", "s3", "s4", "s5", "s6", "s16"):
             flush_indent_group()
-            headings_text.append(p_plain)
             htag = {
                 "s2": "h3",
                 "s16": "h3",
@@ -690,17 +689,43 @@ def render_entry_body(entry_id, body_paras):
                 "s5": "h5",
                 "s6": "h6",
             }[st]
-            # Check if heading is a scripture reference and doesn't already have a link
-            sc_refs = extract_scriptures_from_text(p_plain)
-            if sc_refs and "<a " not in p_html:
+            # Strip default Google Docs heading italics so subheadings are crisp & upright
+            h_html = re.sub(r'</?em>', '', p_html).strip()
+            extra_quote_lines = []
+            if '<br />' in h_html:
+                parts_br = [x.strip() for x in h_html.split('<br />') if x.strip()]
+                h_html = parts_br[0] if parts_br else h_html
+                extra_quote_lines = parts_br[1:]
+            h_plain = re.sub(r'<[^>]+>', '', h_html).strip()
+            headings_text.append(h_plain)
+
+            # Check if heading is a scripture reference
+            sc_refs = extract_scriptures_from_text(h_plain)
+            sub_cls = "entry-subheading scripture-subheading" if (sc_refs and len(h_plain) < 95) else "entry-subheading"
+            if sc_refs and "<a " not in h_html:
                 sc_url = sc_refs[0]["url"]
-                p_html = f'<a href="{html.escape(sc_url)}" target="_blank" rel="noopener" class="scripture-heading-link">{p_html}</a>'
-            out_blocks.append(f'<{htag} class="entry-subheading">{p_html}</{htag}>')
+                h_html = f'<a href="{html.escape(sc_url)}" target="_blank" rel="noopener" class="scripture-heading-link">{h_html}</a>'
+            out_blocks.append(f'<{htag} class="{sub_cls}">{h_html}</{htag}>')
+            for qline in extra_quote_lines:
+                indent_group.append((2.0, qline))
             continue
 
-        # 4. Indented blocks (scripture quotes & chiasmus)
-        if p["li"] >= 600:
-            step = round(p["li"] / 360, 2)
+        # 4. Indented blocks & scripture/block quotes (indented, verse-numbered, or full-paragraph quotes)
+        stripped_plain = p_plain.strip()
+        is_verse_para = bool(
+            re.match(r'^[¹²³⁴⁵⁶⁷⁸⁹⁰]+\s*\S', stripped_plain)
+            or re.match(r'^\d{1,3}\s+[A-Z“"‘\'\[]', stripped_plain)
+        )
+        is_full_quote_para = bool(
+            len(stripped_plain) > 45
+            and stripped_plain[0] in '“"'
+            and (
+                stripped_plain[-1] in '”"'
+                or re.search(r'[”"]\s*\([^)]+\)\.?$', stripped_plain)
+            )
+        )
+        if p["li"] >= 360 or is_verse_para or is_full_quote_para:
+            step = round(p["li"] / 360, 2) if p["li"] >= 360 else 2.0
             indent_group.append((step, p_html))
             continue
         else:
@@ -737,13 +762,12 @@ def parse_s16_metadata(s16_html, s16_plain, s16_links, canonical_tags):
     """
     Parses the s16 subtitle line into:
     - sources_raw: clean string of sources/references
-    - sources_html: HTML string of sources/references (preserving links)
+    - sources_html: HTML string of sources/references (preserving links, upright & balanced)
     - tags: list of canonical tag strings (without '#')
     """
     raw = s16_plain.strip()
     if '|' in raw:
         left_plain, right_plain = raw.rsplit('|', 1)
-        # Also split s16_html on the last '|'
         if '|' in s16_html:
             left_html, _ = s16_html.rsplit('|', 1)
         else:
@@ -754,6 +778,12 @@ def parse_s16_metadata(s16_html, s16_plain, s16_links, canonical_tags):
     else:
         left_plain, left_html = raw, s16_html
         right_plain = ""
+
+    # Strip inline style wrappers (em/strong/u/s/span/mark) from s16 subtitle HTML
+    # so splitting on '|' never leaves an unclosed <em> tag!
+    left_html = re.sub(r'</?(?:em|strong|u|s|span|mark)\b[^>]*>', '', left_html)
+    if left_html.count('<a ') > left_html.count('</a>'):
+        left_html += '</a>' * (left_html.count('<a ') - left_html.count('</a>'))
 
     # Clean sources
     left_plain = left_plain.strip()
@@ -938,7 +968,8 @@ def parse_journal_file(fname, file_prefix, source_label, img_out_dir, canonical_
             "display_date": display_date,
             "raw_date": raw_date,
             "year": y,
-            "journal": source_label,
+            "month": dt_obj.strftime("%Y-%m"),
+            "month_num": m,
             "sources_raw": sources_raw,
             "sources_html": sources_html,
             "tags": tags,
@@ -961,13 +992,13 @@ def parse_journal_file(fname, file_prefix, source_label, img_out_dir, canonical_
 
 def extract_all_entries(archive_path, current_path, img_out_dir):
     canonical_tags = {}
-    archive_entries = parse_journal_file(
-        archive_path, "archive", "Archive (2019–2023)", img_out_dir, canonical_tags
+    first_entries = parse_journal_file(
+        archive_path, "archive", "Gospel Study Journal", img_out_dir, canonical_tags
     )
-    current_entries = parse_journal_file(
-        current_path, "current", "Journal (2023–2025)", img_out_dir, canonical_tags
+    second_entries = parse_journal_file(
+        current_path, "current", "Gospel Study Journal", img_out_dir, canonical_tags
     )
-    all_entries = archive_entries + current_entries
+    all_entries = first_entries + second_entries
     # Ensure unique IDs if two entries on same day have similar titles
     seen_ids = {}
     for e in all_entries:

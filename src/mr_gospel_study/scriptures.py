@@ -230,3 +230,39 @@ def extract_header_scriptures(source_text):
             })
     return results
 
+
+def linkify_scripture_references(html_fragment):
+    """
+    Wraps plain-text scripture citations (not already inside <a>...</a> or HTML attributes)
+    in <a class="inline-scripture-ref" ...> links.
+    """
+    if not html_fragment:
+        return html_fragment
+
+    # Split by existing <a ...>...</a> or HTML tags so we only transform text nodes outside <a>
+    parts = re.split(r'(<a\b[^>]*>.*?</a>|<[^>]+>)', html_fragment, flags=re.IGNORECASE | re.DOTALL)
+    out = []
+    for part in parts:
+        if not part or part.startswith('<'):
+            out.append(part)
+            continue
+
+        def repl_cit(m):
+            full_match = m.group(0)
+            refs = extract_scriptures_from_text(full_match)
+            if not refs:
+                return full_match
+            r0 = refs[0]
+            url = html.escape(r0["url"])
+            book = html.escape(r0["book"])
+            ch = r0["chapter"] or ""
+            return (
+                f'<a href="{url}" target="_blank" rel="noopener" '
+                f'class="inline-scripture-ref" data-book="{book}" data-ch="{ch}" '
+                f'title="Open {html.escape(r0[\'ref\'])}">{full_match}</a>'
+            )
+
+        out.append(SCRIPTURE_CITATION_RE.sub(repl_cit, part))
+    return "".join(out)
+
+

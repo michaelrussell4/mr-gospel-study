@@ -1,19 +1,26 @@
 # Gospel Study Journal — Michael Garrett Russell
 
-A static study site and scripture exploration library generated from the Google Docs RTF exports in `raw/` (`Gospel Study Journal ARCHIVE.rtf` and `Gospel Study Journal_ Michael Russell.rtf`).
+A static gospel study library and interactive scripture analytics site generated from the Google Docs RTF exports in `raw/`.
 
 ## Features
 
-- **294 Study Articles (2019–2025)** across 190,000+ words of scripture commentary, theological notes, and literary analyses.
-- **Nuanced RTF Extraction (`src/mr_gospel_study/parser.py`)**:
-  - Handles multi-entry dates, mis-styled title/subtitle headers (`s0`/`s1`/`s2`/`s16`), multi-line `s16` metadata headers, and multi-pipe source strings.
-  - Preserves comparison tables, nested ordered/unordered lists, footnotes, hyperlinks, semantic text/highlight colors (`\cfN` & `\chcbpatN` mapped per-file color table for both Light and Dark themes), and multi-level step indentations for scripture quotes and **Chiasmus** structures.
-  - Extracts embedded PNG charts/figures losslessly and converts inline equation bitmaps into crisp HTML math markup.
-- **Interactive Search & Exploration (`src/mr_gospel_study/app_js.py`)**:
-  - **Unified Instant Search (`/` or `⌘K`)** across titles, full article text, `#tags`, and scripture references with live context snippets.
-  - **Scripture Index Explorer**: Browse all **1,226** scripture citations across **64** books in the 5 Standard Works (`Book of Mormon`, `Doctrine & Covenants`, `Pearl of Great Price`, `New Testament`, `Old Testament`) down to specific chapters and verses.
-  - **Topic & Tag Directory**: Browse and filter across all **576** `#tags`.
-  - **Chronological Archive**: Year-by-year timeline from 2019 to 2025 plus a **Random Study** button.
+- **294 Unified Study Articles (2019–2025)** across 190,000+ words of scripture commentary, theological notes, and literary analyses.
+- **Clean, Readable Formatting & Nuanced RTF Extraction ([`parser.py`](src/mr_gospel_study/parser.py))**:
+  - Upright, high-legibility typography (`Inter` / `Plus Jakarta Sans` default with optional `Newsreader` book serif toggle).
+  - Semantic `<blockquote class="study-blockquote">` blocks with solid left accent bars for indented scripture quotes, multi-level **Chiasmus** structures, verse-numbered passages, and full-paragraph quotations.
+  - Left-bordered scripture subheadings (`.scripture-subheading`) and inline scripture reference badges (`.inline-scripture-ref`).
+  - Responsive comparison tables, nested ordered/unordered lists, footnotes, semantic text/highlight colors (`\cfN` & `\chcbpatN`), lossless PNG figures, and HTML math markup.
+- **Interactive Data Science & Visualizations ([`app_js.py`](src/mr_gospel_study/app_js.py))**:
+  - **📊 Insights Dashboard**:
+    - **Study Cadence & Writing Volume Over Time**: Interactive SVG bar chart toggleable between *Articles*, *Total Words*, and *Avg Words/Study* across *Yearly*, *Quarterly*, and *Monthly* granularities.
+    - **Monthly Study Activity Heatmap**: 7-year × 12-month calendar matrix (`2019–2025`) with hover previews and click-to-filter.
+    - **Canonical Scripture Citation Heatmap**: Book × Chapter intensity matrix across all 87 books of the 5 Standard Works (`Book of Mormon`, `Doctrine & Covenants`, `Pearl of Great Price`, `New Testament`, `Old Testament`).
+    - **Standard Works Proportion & Top 15 Books**: Citation share and chapter coverage analysis.
+    - **Study Depth Histogram & Deep-Dive Leaderboard**: Word-count distribution across 7 bins plus the longest essays.
+    - **Theological Topic Co-Occurrence Network**: Ranked `#tags` and strongest tag pairings by shared study count and Jaccard similarity.
+- **Unified Search & Exploration**:
+  - **Instant Search (`/` or `⌘K`)** across titles, full article text, `#tags`, and scripture references with highlighted context snippets.
+  - **Scripture Index Explorer**, **Topic & Tag Directory**, and **Chronological Timeline**.
 
 ## Building Locally
 
@@ -21,7 +28,7 @@ A static study site and scripture exploration library generated from the Google 
 uv run mr-gospel-study
 ```
 
-This generates the complete static site in `dist/` (which can be opened directly or served with `python -m http.server -d dist`).
+This generates the complete static site in `dist/` (including `favicon.svg` and `favicon.png`).
 
 ## Deployment
 
