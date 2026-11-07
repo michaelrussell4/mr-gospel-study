@@ -611,6 +611,8 @@ def render_entry_body(entry_id, body_paras):
         table_rows = []
         in_table = False
 
+    last_was_scripture_heading = False
+
     for p in body_paras:
         p_html = p["html"]
         p_plain = p["plain"]
@@ -705,30 +707,88 @@ def render_entry_body(entry_id, body_paras):
 
             # Check if heading is a scripture reference
             sc_refs = extract_scriptures_from_text(h_plain)
-            sub_cls = "entry-subheading scripture-subheading" if (sc_refs and len(h_plain) < 95) else "entry-subheading"
-            if sc_refs and "<a " not in h_html:
+            is_sc_heading = bool(sc_refs and len(h_plain) < 120)
+            if is_sc_heading and "<a " not in h_html and sc_refs:
                 sc_url = sc_refs[0]["url"]
                 h_html = f'<a href="{html.escape(sc_url)}" target="_blank" rel="noopener" class="scripture-heading-link">{h_html}</a>'
-            out_blocks.append(f'<{htag} class="{sub_cls}">{h_html}</{htag}>')
+            out_blocks.append(f'<{htag} class="entry-subheading">{h_html}</{htag}>')
+            last_was_scripture_heading = is_sc_heading
             for qline in extra_quote_lines:
                 indent_group.append((2.0, linkify_scripture_references(qline)))
             continue
 
         # 4. Indented blocks & scripture/block quotes (indented, verse-numbered, or full-paragraph quotes)
         stripped_plain = p_plain.strip()
-        is_verse_para = bool(
-            re.match(r'^[¹²³⁴⁵⁶⁷⁸⁹⁰]+\s*\S', stripped_plain)
-            or re.match(r'^\d{1,3}\s+[A-Z“"‘\'\[]', stripped_plain)
+        if not stripped_plain:
+            continue
+
+        # Check if text starts with a numbered book name (e.g. 1 Nephi, 2 Samuel, 1 Cor...)
+        # This is commentary or a reference title, NOT a verse number!
+        is_num_book_start = bool(
+            re.match(
+                r'^(?:1|2|3|4)\s+(?:Nephi|Samuel|Kings|Chronicles|Corinthians|Thessalonians|Timothy|Peter|John|Maccabees|Esdras|Cor|Thess|Tim|Sam|Kgs|Chron|Pet)\b',
+                stripped_plain,
+                re.IGNORECASE
+            )
         )
+
+        # Check for explicit author commentary openings (e.g. "I think...", "This verse shows...", "2 Nephi 9:7 says...")
+        is_commentary = bool(
+            re.match(
+                r'^(?:I\s|I’m\s|I\'m\s|My\s|We\s|In this\s|This (?:verse|scripture|chapter|passage|tells|shows|is|story|example|reference)\s|Here\s|There (?:are|is)\s|Note\s|Notice\s)',
+                stripped_plain,
+                re.IGNORECASE
+            )
+            or re.match(
+                r'^(?:[1-4]\s+)?[A-Z][a-z]+(?:\s+\d+(?::\d+)?)?\s+(?:says|tells|explains|suggests|describes|shows|teaches|means|refers|is\s|discusses|indicates)',
+                stripped_plain,
+                re.IGNORECASE
+            )
+        )
+
+        # Verse paragraph:
+        # 1. Superscript numbers: ^[¹²³⁴⁵⁶⁷⁸⁹⁰]
+        # 2. Leading digits followed by verse text (e.g. "26 And God said...", "3:19 Now we know...")
+        #    BUT NOT numbered books and NOT commentary
+        is_verse_num_para = False
+        if not is_num_book_start and not is_commentary:
+            if re.match(r'^[¹²³⁴⁵⁶⁷⁸⁹⁰]+\s*\S', stripped_plain):
+                is_verse_num_para = True
+            elif re.match(r'^\d{1,3}(?::\d{1,3})?\s+[A-Z“"‘\'\[]', stripped_plain):
+                is_verse_num_para = True
+
+        # Starts with ellipsis followed by quote or capital letter (scripture excerpt)
+        starts_ellipsis_quote = bool(re.match(r'^(?:…|\.\.\.)\s*["“]?[A-Z]', stripped_plain)) and not is_commentary
+
+        # Full paragraph quote in quotation marks
         is_full_quote_para = bool(
-            len(stripped_plain) > 45
+            len(stripped_plain) > 35
             and stripped_plain[0] in '“"'
             and (
                 stripped_plain[-1] in '”"'
                 or re.search(r'[”"]\s*\([^)]+\)\.?$', stripped_plain)
             )
+        ) and not is_commentary
+
+        # Paragraph directly following a scripture reference heading:
+        # e.g. "### Matthew 19:17 NIV" -> "…If you want to enter life..."
+        # e.g. "### Moroni 10:32" -> "Yea, come unto Christ..."
+        # e.g. "### John 3:16" -> "For God so loved the world..."
+        is_scripture_quote_after_heading = False
+        if last_was_scripture_heading and not is_commentary and len(stripped_plain) > 15:
+            is_scripture_quote_after_heading = True
+
+        is_quote = (
+            p["li"] >= 360
+            or is_verse_num_para
+            or starts_ellipsis_quote
+            or is_full_quote_para
+            or is_scripture_quote_after_heading
         )
-        if p["li"] >= 360 or is_verse_para or is_full_quote_para:
+
+        last_was_scripture_heading = False
+
+        if is_quote:
             step = round(p["li"] / 360, 2) if p["li"] >= 360 else 2.0
             indent_group.append((step, linkify_scripture_references(p_html)))
             continue

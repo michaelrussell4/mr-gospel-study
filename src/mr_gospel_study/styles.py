@@ -936,15 +936,6 @@ a:hover {
   font-style: normal;
 }
 
-.article-body .entry-subheading.scripture-subheading {
-  border-bottom: none;
-  border-left: 4px solid var(--brand-primary);
-  background: color-mix(in srgb, var(--brand-soft) 55%, var(--bg-elevated));
-  padding: 0.45rem 0.85rem;
-  border-radius: 0 0.5rem 0.5rem 0;
-  margin: 1.65em 0 0.55em;
-}
-
 .article-body h3.entry-subheading {
   font-size: 1.22rem;
   font-weight: 700;
@@ -986,19 +977,18 @@ a:hover {
 .inline-scripture-ref {
   display: inline;
   font-weight: 600;
-  color: var(--scripture-pill-text);
-  background: var(--scripture-pill-bg);
-  border-left: 3px solid var(--scripture-pill-text);
-  padding: 0.06em 0.42em 0.06em 0.38em;
-  border-radius: 0 0.28em 0.28em 0;
-  text-decoration: none;
-  font-size: 0.94em;
-  transition: filter 0.14s ease, border-color 0.14s ease;
+  color: var(--brand-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  text-decoration-color: color-mix(in srgb, var(--brand-primary) 35%, transparent);
+  border-radius: 0.25rem;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
 .inline-scripture-ref:hover {
-  filter: brightness(0.94);
-  color: var(--scripture-pill-text);
+  color: var(--brand-accent);
+  text-decoration-color: var(--brand-accent);
 }
 
 /* Blockquotes, Indented Scripture Quotes & Chiasmus Structures */
@@ -1009,19 +999,19 @@ blockquote,
   margin: 1.25em 0 1.45em;
   padding: 0.95rem 1.25rem;
   background: color-mix(in srgb, var(--bg-elevated) 78%, var(--bg-surface));
-  border-left: 4px solid var(--brand-accent);
-  border-radius: 0 0.65rem 0.65rem 0;
+  border-left: 3.5px solid var(--brand-accent);
+  border-radius: 0 0.5rem 0.5rem 0;
   font-style: normal;
   color: var(--text-primary);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.article-body .scripture-subheading + .study-blockquote {
-  margin-top: 0.35rem;
+.article-body .entry-subheading + .study-blockquote {
+  margin-top: 0.45rem;
 }
 
 .study-chiasm-group {
-  border-left: 4px solid var(--brand-primary);
+  border-left: 3.5px solid var(--brand-primary);
   overflow-x: auto;
 }
 
