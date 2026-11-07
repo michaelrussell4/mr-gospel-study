@@ -4,7 +4,11 @@ import html
 import json
 import struct
 from datetime import datetime
-from .scriptures import extract_scriptures_from_text, extract_header_scriptures
+from .scriptures import (
+    extract_scriptures_from_text,
+    extract_header_scriptures,
+    linkify_scripture_references,
+)
 
 MATH_IMAGE_MAP = {
     "__IMG_archive_1__": ('block', '<div class="math-block"><code><var>F</var> = <var>H</var> + <var>A</var></code></div>', 'F = H + A'),
@@ -672,7 +676,7 @@ def render_entry_body(entry_id, body_paras):
                     out_blocks.append(f"</{top_tag}><{ltag}>")
                     list_stack.append((ltag, ilvl))
 
-            out_blocks.append(f"<li>{p_html}</li>")
+            out_blocks.append(f"<li>{linkify_scripture_references(p_html)}</li>")
             continue
         else:
             flush_lists(-1)
@@ -707,7 +711,7 @@ def render_entry_body(entry_id, body_paras):
                 h_html = f'<a href="{html.escape(sc_url)}" target="_blank" rel="noopener" class="scripture-heading-link">{h_html}</a>'
             out_blocks.append(f'<{htag} class="{sub_cls}">{h_html}</{htag}>')
             for qline in extra_quote_lines:
-                indent_group.append((2.0, qline))
+                indent_group.append((2.0, linkify_scripture_references(qline)))
             continue
 
         # 4. Indented blocks & scripture/block quotes (indented, verse-numbered, or full-paragraph quotes)
@@ -726,7 +730,7 @@ def render_entry_body(entry_id, body_paras):
         )
         if p["li"] >= 360 or is_verse_para or is_full_quote_para:
             step = round(p["li"] / 360, 2) if p["li"] >= 360 else 2.0
-            indent_group.append((step, p_html))
+            indent_group.append((step, linkify_scripture_references(p_html)))
             continue
         else:
             flush_indent_group()
@@ -735,7 +739,7 @@ def render_entry_body(entry_id, body_paras):
         if p_html.startswith('<figure ') or p_html.startswith('<div class="math-block">'):
             out_blocks.append(p_html)
         else:
-            out_blocks.append(f"<p>{p_html}</p>")
+            out_blocks.append(f"<p>{linkify_scripture_references(p_html)}</p>")
 
     if in_table:
         flush_table()

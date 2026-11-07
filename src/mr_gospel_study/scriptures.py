@@ -255,11 +255,12 @@ def linkify_scripture_references(html_fragment):
             r0 = refs[0]
             url = html.escape(r0["url"])
             book = html.escape(r0["book"])
+            ref_esc = html.escape(r0["ref"])
             ch = r0["chapter"] or ""
             return (
                 f'<a href="{url}" target="_blank" rel="noopener" '
                 f'class="inline-scripture-ref" data-book="{book}" data-ch="{ch}" '
-                f'title="Open {html.escape(r0[\'ref\'])}">{full_match}</a>'
+                f'title="Open {ref_esc}">{full_match}</a>'
             )
 
         out.append(SCRIPTURE_CITATION_RE.sub(repl_cit, part))
